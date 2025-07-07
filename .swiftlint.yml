@@ -1,0 +1,19 @@
+# SwiftLint Configuration for Calendar Pod
+included:
+  - Sources
+  - Tests
+
+excluded:
+  - .build
+  - .swiftpm
+  - Packages
+
+disabled_rules:
+  - trailing_comma
+  - identifier_name
+  - todo
+  - force_try
+  - line_length
+  - file_length
+
+reporter: "xcode"

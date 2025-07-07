@@ -6,10 +6,10 @@ import PackageDescription
 let package = Package(
   name: "pod-dezzw-calendar",
   platforms: [
-    .macOS(.v13), // Minimum macOS version
+    .macOS(.v13)  // Minimum macOS version
   ],
   products: [
-    .executable(name: "pod-dezzw-calendar", targets: ["pod-dezzw-calendar"]),
+    .executable(name: "pod-dezzw-calendar", targets: ["pod-dezzw-calendar"])
   ],
   targets: [
     // Targets are the basic building blocks of a package, defining a module or a test suite.

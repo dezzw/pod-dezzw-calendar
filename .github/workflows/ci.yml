@@ -165,9 +165,29 @@ jobs:
     - name: Run SwiftLint
       run: |
         if command -v swiftlint >/dev/null 2>&1; then
-          swiftlint --reporter github-actions-logging
+          echo "🔍 Running SwiftLint..."
+          swiftlint --reporter github-actions-logging --strict --config .swiftlint.yml
         else
           echo "SwiftLint not available, skipping..."
+        fi
+        
+    - name: SwiftLint Autocorrect
+      if: github.event_name == 'pull_request'
+      run: |
+        if command -v swiftlint >/dev/null 2>&1; then
+          echo "🔧 Running SwiftLint autocorrect..."
+          swiftlint --autocorrect --config .swiftlint.yml
+          
+          # Check if any files were modified
+          if ! git diff --exit-code --quiet; then
+            echo "⚠️  SwiftLint made autocorrect changes:"
+            git diff --name-only
+            echo "Please commit these changes to fix style issues."
+          else
+            echo "✅ No autocorrect changes needed"
+          fi
+        else
+          echo "SwiftLint not available, skipping autocorrect..."
         fi
         
     - name: Check code formatting

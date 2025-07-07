@@ -1,5 +1,5 @@
-import Foundation
 import EventKit
+import Foundation
 
 public func addEvent(args: InvokeArgs) throws {
     let store = EKEventStore()
@@ -48,7 +48,7 @@ public func listEvents(args: ListArgs) throws -> [[String: String]] {
     let store = EKEventStore()
     let sema = DispatchSemaphore(value: 0)
     var granted = false
-    store.requestAccess(to: .event) {ok, _ in
+    store.requestAccess(to: .event) { ok, _ in
         granted = ok
         sema.signal()
     }
@@ -101,21 +101,28 @@ public func searchEvents(args: SearchArgs) throws -> [EventDTO] {
     formatter.dateFormat = "yyyy-MM-dd HH:mm"
 
     guard let startDate = formatter.date(from: args.start),
-          let endDate = formatter.date(from: args.end) else {
-        throw NSError(domain: "calendar", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid date format"])
+        let endDate = formatter.date(from: args.end)
+    else {
+        throw NSError(
+            domain: "calendar", code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "Invalid date format"])
     }
 
     let store = EKEventStore()
-    let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: store.calendars(for: .event).filter { $0.title == args.calendar })
+    let predicate = store.predicateForEvents(
+        withStart: startDate, end: endDate,
+        calendars: store.calendars(for: .event).filter { $0.title == args.calendar })
 
     let events = store.events(matching: predicate)
 
-    return events
+    return
+        events
         .filter { $0.title.localizedCaseInsensitiveContains(args.query) }
         .map {
-            EventDTO(id: $0.eventIdentifier,
-                     title: $0.title,
-                     start: formatter.string(from: $0.startDate),
-                     end: formatter.string(from: $0.endDate))
+            EventDTO(
+                id: $0.eventIdentifier,
+                title: $0.title,
+                start: formatter.string(from: $0.startDate),
+                end: formatter.string(from: $0.endDate))
         }
 }

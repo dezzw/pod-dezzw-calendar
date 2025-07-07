@@ -31,8 +31,12 @@ func writeBencode(_ value: Bencode) {
 }
 
 func encodeJSON<T: Encodable>(_ obj: T) -> String {
-    let data = try! JSONEncoder().encode(obj)
-    return String(data: data, encoding: .utf8)!
+    do {
+        let data = try JSONEncoder().encode(obj)
+        return String(data: data, encoding: .utf8) ?? "{}"
+    } catch {
+        return "{}"
+    }
 }
 
 func writeSuccess<T: Encodable>(id: String, value: T) {
@@ -47,7 +51,7 @@ func writeSuccess<T: Encodable>(id: String, value: T) {
 // MARK: - Main Loop
 while true {
     var buffer = Data()
-    var parsed: Bencode? = nil
+    var parsed: Bencode?
 
     while true {
         let byte = FileHandle.standardInput.readData(ofLength: 1)

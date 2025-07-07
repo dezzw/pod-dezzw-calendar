@@ -1,5 +1,6 @@
-import Foundation
 import EventKit
+import Foundation
+
 @testable import pod_dezzw_calendar
 
 // MARK: - Calendar Service Protocol
@@ -16,7 +17,7 @@ public struct CalendarInfo {
     public let title: String
     public let identifier: String
     public let allowsContentModifications: Bool
-    
+
     public init(title: String, identifier: String, allowsContentModifications: Bool = true) {
         self.title = title
         self.identifier = identifier
@@ -31,7 +32,7 @@ public enum CalendarServiceError: Error, LocalizedError {
     case calendarNotFound
     case eventNotFound
     case permissionRequired
-    
+
     public var errorDescription: String? {
         switch self {
         case .accessDenied:
