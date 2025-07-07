@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  SWIFT_VERSION: '6.1.0'
+  SWIFT_VERSION: '5.9.0'
 
 jobs:
   test:
@@ -22,7 +22,7 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.2'
+        xcode-version: '15.4'
         
     - name: Cache Swift Package Manager
       uses: actions/cache@v4
@@ -35,7 +35,27 @@ jobs:
           ${{ runner.os }}-spm-
           
     - name: Print Swift version
-      run: swift --version
+      run: |
+        swift --version
+        echo "Swift tools version required: 5.9.0"
+        
+    - name: Check Package.swift compatibility
+      run: |
+        # Check if we can resolve the package
+        swift package resolve || {
+          echo "Package resolution failed. Checking compatibility..."
+          
+          # Try to detect available Swift version
+          SWIFT_VERSION=$(swift --version | head -1 | sed 's/.*Swift version \([0-9.]*\).*/\1/')
+          echo "Available Swift version: $SWIFT_VERSION"
+          
+          # If Swift 5.9.0 is not available, show helpful error
+          if [[ "$SWIFT_VERSION" < "5.9.0" ]]; then
+            echo "⚠️  Swift 5.9.0 not available. Runner has $SWIFT_VERSION"
+            echo "Please update the workflow to use a compatible Xcode version"
+            exit 1
+          fi
+        }
       
     - name: Build project
       run: swift build --configuration debug
@@ -80,7 +100,7 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.2'
+        xcode-version: '15.4'
         
     - name: Build release
       run: swift build --configuration release
@@ -136,7 +156,7 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.2'
+        xcode-version: '15.4'
         
     - name: Install SwiftLint
       run: |
@@ -181,7 +201,7 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.2'
+        xcode-version: '15.4'
         
     - name: Generate documentation
       run: |
@@ -231,7 +251,7 @@ jobs:
     runs-on: macos-14
     strategy:
       matrix:
-        xcode: ['15.0', '15.2']
+        xcode: ['15.2', '15.4']
     
     steps:
     - name: Checkout code
@@ -260,7 +280,7 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.2'
+        xcode-version: '15.4'
         
     - name: Run performance tests
       run: |
