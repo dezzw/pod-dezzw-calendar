@@ -7,6 +7,12 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Set permissions for the workflow
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 env:
   SWIFT_VERSION: '5.9.0'
 
@@ -213,6 +219,12 @@ jobs:
     runs-on: macos-14
     if: github.ref == 'refs/heads/main'
     
+    # Set specific permissions for this job
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -257,13 +269,66 @@ jobs:
         Run the server and communicate via Bencode messages for calendar operations.
         EOF
         
-    - name: Deploy documentation
-      if: success()
-      uses: peaceiris/actions-gh-pages@v3
+        # Create a simple index.html
+        cat > docs/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Calendar Pod Documentation</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; }
+                h1 { color: #333; }
+                .section { margin: 20px 0; }
+                .code { background: #f4f4f4; padding: 10px; border-radius: 4px; }
+            </style>
+        </head>
+        <body>
+            <h1>Calendar Pod Documentation</h1>
+            <div class="section">
+                <h2>Overview</h2>
+                <p>This is a Model Context Protocol (MCP) server for calendar operations using EventKit.</p>
+            </div>
+            <div class="section">
+                <h2>Architecture</h2>
+                <ul>
+                    <li><strong>CalendarServiceProtocol</strong>: Defines the interface for calendar operations</li>
+                    <li><strong>MockCalendarService</strong>: Mock implementation for testing</li>
+                    <li><strong>EventKitCalendarService</strong>: Real EventKit implementation</li>
+                    <li><strong>MessageProcessorTestHelper</strong>: Helper for testing protocol messages</li>
+                </ul>
+            </div>
+            <div class="section">
+                <h2>Testing</h2>
+                <p>The project includes comprehensive tests that don't require local EventKit access:</p>
+                <ul>
+                    <li>Unit tests for all service implementations</li>
+                    <li>Protocol conformance tests</li>
+                    <li>Message processing tests</li>
+                    <li>Bencode protocol integration tests</li>
+                </ul>
+            </div>
+            <div class="section">
+                <h2>Usage</h2>
+                <p>Run the server and communicate via Bencode messages for calendar operations.</p>
+                <div class="code">
+                    <pre>swift run pod-dezzw-calendar</pre>
+                </div>
+            </div>
+        </body>
+        </html>
+        EOF
+        
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+      
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs
-        force_orphan: true
+        path: ./docs
+        
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
 
   compatibility:
     name: Compatibility Check
