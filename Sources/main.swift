@@ -35,6 +35,15 @@ func encodeJSON<T: Encodable>(_ obj: T) -> String {
     return String(data: data, encoding: .utf8)!
 }
 
+func writeSuccess<T: Encodable>(id: String, value: T) {
+    writeBencode(
+        .dict([
+            "id": .string(id),
+            "status": .list([.string("done")]),
+            "value": .string(encodeJSON(value)),
+        ]))
+}
+
 // MARK: - Main Loop
 while true {
     var buffer = Data()

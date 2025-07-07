@@ -17,5 +17,9 @@ let package = Package(
     .executableTarget(
       name: "pod-dezzw-calendar"
     ),
+    .testTarget(
+      name: "CalendarPodTests",
+      dependencies: ["pod-dezzw-calendar"]
+    ),
   ]
 )
