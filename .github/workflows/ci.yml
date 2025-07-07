@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  SWIFT_VERSION: '5.9'
+  SWIFT_VERSION: '6.1.0'
 
 jobs:
   test:
