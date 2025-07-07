@@ -71,3 +71,10 @@ coverage.lcov
 
 # macOS
 .DS_Store
+
+# Editor
+.vscode/
+
+# Swift
+.build/
+*.log
