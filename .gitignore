@@ -60,3 +60,14 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# Coverage files
+coverage.lcov
+*.profdata
+
+# Temporary files
+*.tmp
+*.temp
+
+# macOS
+.DS_Store

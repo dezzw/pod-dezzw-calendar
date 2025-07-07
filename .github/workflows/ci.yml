@@ -65,9 +65,8 @@ jobs:
       
     - name: Run integration tests
       run: |
-        cd Tests
-        chmod +x run_tests.sh
-        ./run_tests.sh
+        chmod +x Scripts/run_tests.sh
+        ./Scripts/run_tests.sh
         
     - name: Generate test report
       if: always()
