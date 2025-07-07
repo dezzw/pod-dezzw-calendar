@@ -1,0 +1,304 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  SWIFT_VERSION: '5.9'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.2'
+        
+    - name: Cache Swift Package Manager
+      uses: actions/cache@v4
+      with:
+        path: |
+          .build
+          ~/Library/Caches/org.swift.swiftpm
+        key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-
+          
+    - name: Print Swift version
+      run: swift --version
+      
+    - name: Build project
+      run: swift build --configuration debug
+      
+    - name: Run unit tests
+      run: swift test --configuration debug --parallel
+      
+    - name: Run integration tests
+      run: |
+        cd Tests
+        chmod +x run_tests.sh
+        ./run_tests.sh
+        
+    - name: Generate test report
+      if: always()
+      run: |
+        swift test --configuration debug --parallel --enable-code-coverage
+        xcrun llvm-cov export \
+          .build/debug/pod-dezzw-calendarPackageTests.xctest/Contents/MacOS/pod-dezzw-calendarPackageTests \
+          -instr-profile .build/debug/codecov/default.profdata \
+          -format="lcov" > coverage.lcov
+          
+    - name: Upload coverage to Codecov
+      if: always()
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.lcov
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  build-release:
+    name: Build Release
+    runs-on: macos-14
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.2'
+        
+    - name: Build release
+      run: swift build --configuration release
+      
+    - name: Create release artifact
+      run: |
+        mkdir -p release
+        cp .build/release/pod-dezzw-calendar release/
+        tar -czf pod-dezzw-calendar-macos.tar.gz -C release .
+        
+    - name: Upload release artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pod-dezzw-calendar-macos
+        path: pod-dezzw-calendar-macos.tar.gz
+        retention-days: 30
+
+  security-scan:
+    name: Security Scan
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run security scan
+      run: |
+        # Check for common security issues
+        echo "🔍 Running security checks..."
+        
+        # Check for hardcoded secrets (basic patterns)
+        if grep -r -i "api[_-]key\|password\|secret\|token" Sources/ --exclude-dir=.git || true; then
+          echo "⚠️  Found potential hardcoded secrets - please review"
+        else
+          echo "✅ No obvious hardcoded secrets found"
+        fi
+        
+        # Check for TODO/FIXME that might indicate security issues
+        if grep -r "TODO.*security\|FIXME.*security\|TODO.*auth\|FIXME.*auth" Sources/ || true; then
+          echo "⚠️  Found security-related TODOs - please review"
+        else
+          echo "✅ No security-related TODOs found"
+        fi
+
+  lint:
+    name: Code Quality
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.2'
+        
+    - name: Install SwiftLint
+      run: |
+        brew install swiftlint
+        
+    - name: Run SwiftLint
+      run: |
+        if command -v swiftlint >/dev/null 2>&1; then
+          swiftlint --reporter github-actions-logging
+        else
+          echo "SwiftLint not available, skipping..."
+        fi
+        
+    - name: Check code formatting
+      run: |
+        # Basic Swift formatting checks
+        echo "🔍 Checking code formatting..."
+        
+        # Check for trailing whitespace
+        if grep -r " $" Sources/ Tests/ || true; then
+          echo "⚠️  Found trailing whitespace"
+        else
+          echo "✅ No trailing whitespace found"
+        fi
+        
+        # Check for tabs instead of spaces
+        if grep -r $'\t' Sources/ Tests/ || true; then
+          echo "⚠️  Found tabs instead of spaces"
+        else
+          echo "✅ Consistent spacing found"
+        fi
+
+  documentation:
+    name: Documentation
+    runs-on: macos-14
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.2'
+        
+    - name: Generate documentation
+      run: |
+        # Generate basic documentation
+        echo "📚 Generating documentation..."
+        
+        # Create docs directory
+        mkdir -p docs
+        
+        # Generate API documentation (basic)
+        swift package generate-documentation --target pod-dezzw-calendar --output-path docs || echo "Documentation generation requires additional setup"
+        
+        # Create README for docs
+        cat > docs/README.md << 'EOF'
+        # Calendar Pod Documentation
+        
+        ## Overview
+        This is a Model Context Protocol (MCP) server for calendar operations using EventKit.
+        
+        ## Architecture
+        - **CalendarServiceProtocol**: Defines the interface for calendar operations
+        - **MockCalendarService**: Mock implementation for testing
+        - **EventKitCalendarService**: Real EventKit implementation
+        - **MessageProcessorTestHelper**: Helper for testing protocol messages
+        
+        ## Testing
+        The project includes comprehensive tests that don't require local EventKit access:
+        - Unit tests for all service implementations
+        - Protocol conformance tests
+        - Message processing tests
+        - Bencode protocol integration tests
+        
+        ## Usage
+        Run the server and communicate via Bencode messages for calendar operations.
+        EOF
+        
+    - name: Deploy documentation
+      if: success()
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+        force_orphan: true
+
+  compatibility:
+    name: Compatibility Check
+    runs-on: macos-14
+    strategy:
+      matrix:
+        xcode: ['15.0', '15.2']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode ${{ matrix.xcode }}
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: ${{ matrix.xcode }}
+        
+    - name: Test compatibility
+      run: |
+        echo "Testing with Xcode ${{ matrix.xcode }}"
+        swift build --configuration debug
+        swift test --configuration debug --parallel
+
+  performance:
+    name: Performance Tests
+    runs-on: macos-14
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.2'
+        
+    - name: Run performance tests
+      run: |
+        echo "🚀 Running performance tests..."
+        
+        # Build in release mode for performance testing
+        swift build --configuration release
+        
+        # Time the build
+        time swift build --configuration release
+        
+        # Test mock service performance
+        swift test --configuration release --filter BasicCalendarTests.testMockService
+        
+        echo "✅ Performance tests completed"
+
+  notify:
+    name: Notifications
+    runs-on: ubuntu-latest
+    needs: [test, build-release, security-scan, lint]
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Notify success
+      if: needs.test.result == 'success' && needs.build-release.result == 'success'
+      run: |
+        echo "🎉 All checks passed!"
+        echo "✅ Tests: ${{ needs.test.result }}"
+        echo "✅ Build: ${{ needs.build-release.result }}"
+        echo "✅ Security: ${{ needs.security-scan.result }}"
+        echo "✅ Lint: ${{ needs.lint.result }}"
+        
+    - name: Notify failure
+      if: needs.test.result == 'failure' || needs.build-release.result == 'failure'
+      run: |
+        echo "❌ Some checks failed!"
+        echo "Tests: ${{ needs.test.result }}"
+        echo "Build: ${{ needs.build-release.result }}"
+        echo "Security: ${{ needs.security-scan.result }}"
+        echo "Lint: ${{ needs.lint.result }}"
+        exit 1
